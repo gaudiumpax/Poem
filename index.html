@@ -406,7 +406,7 @@
   function showRandom(){
     if(movies.length === 0){ alert("No poems yet."); return; }
     const r = movies[Math.floor(Math.random()*movies.length)];
-    const t = `${r.title}\n${(r.actors||[]).join(", ") || "Unknown"}\n\n${r.plot || "(No plot)"}\n\nTags: ${(r.tags||[]).join(", ") || "(none)"}\n\nComment: ${r.year || "Unknown"}`;
+    const t = `${r.title}\n${(r.actors||[]).join(", ")}\n\n${r.plot || "(No plot)"}\n\nTags: ${(r.tags||[]).join(", ") || "(none)"}\n\nComment: ${r.year || "Unknown"}`;
     document.getElementById("popupText").textContent = t;
     document.getElementById("popup").style.display = "flex";
   }
