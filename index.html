@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Poem Collection</title>
+<style>
+  :root{
+    --paper:#fffaf2;
+    --accent:#ffb36b;
+    --muted:#cfa175;
+    --edge:#e2c6a4;
+    --tag-bg:#ffdcb2;
+  }
+  /* Bullet-journal dotted background (A3-2 slightly darker dots) */
+  html,body{
+    height:100%;
+    margin:0;
+    font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background:
+      radial-gradient(circle, rgba(0,0,0,0.12) 1px, transparent 1px),
+      radial-gradient(circle, rgba(0,0,0,0.12) 1px, transparent 1px);
+    background-position: 0 0, 14px 14px;
+    background-size: 14px 14px;
+    background-color: #fff7ee;
+    color:#2c2c2c;
+  }
+
+  /* Layout */
+  .wrap { display:flex; min-height:100vh; gap:0; }
+  #sidebar{
+    width:250px;
+    background:#fff4e8;
+    border-right:3px dashed var(--edge);
+    padding:16px;
+    box-sizing:border-box;
+  }
+  #main { flex:1; padding:20px; box-sizing:border-box; }
+
+  h1{ margin:0 0 10px 0; text-align:center; font-size:1.6rem; }
+  h3{ margin:14px 0 8px 0; }
+
+  /* Inputs / controls */
+  .input, textarea{
+    width:100%;
+    box-sizing:border-box;
+    padding:10px;
+    margin:6px 0;
+    border-radius:10px;
+    border:2px solid #edd4b6;
+    background:#fff8f0;
+    font-size:15px;
+    resize:vertical;
+  }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .btn {
+    background:var(--accent);
+    color:#fff;
+    border:none;
+    padding:9px 12px;
+    border-radius:10px;
+    cursor:pointer;
+    font-weight:600;
+  }
+  .btn.small { padding:6px 8px; font-size:14px; }
+  .btn.ghost { background:transparent; color:var(--muted); border:1px dashed var(--edge); }
+
+  /* Movie cards (detailed M2) */
+  .movies { margin-top:14px; display:flex; flex-direction:column; }
+  .card{
+    background:var(--paper);
+    border-left:6px solid var(--accent);
+    border-radius:12px;
+    padding:12px 14px;
+    margin:12px 0;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.04);
+    position:relative;
+  }
+  .card h4 { margin:0 0 6px 0; font-size:16px; display:flex; justify-content:space-between; align-items:center; gap:12px;}
+  .meta { color:#5a5a5a; font-size:13px; margin-bottom:8px; }
+  .actors { font-size:13px; margin-bottom:8px; color:#444; }
+  .plot { font-size:14px; line-height:1.4; white-space:pre-wrap; margin-bottom:8px; }
+  .plot .more { color:var(--muted); cursor:pointer; font-size:13px; margin-left:6px; }
+
+  .tag {
+    display:inline-block;
+    padding:4px 8px;
+    margin:4px 4px 0 0;
+    border-radius:8px;
+    background:var(--tag-bg);
+    border:1px solid #e6ae81;
+    font-size:12px;
+    cursor:pointer;
+  }
+
+  /* top-right icons: edit and delete */
+  .icons { position:absolute; right:10px; top:8px; display:flex; gap:8px; }
+  .icon-btn {
+    background:transparent;
+    border:none;
+    cursor:pointer;
+    font-size:16px;
+    line-height:1;
+    padding:4px;
+    border-radius:6px;
+  }
+  .icon-btn:hover { background:rgba(0,0,0,0.04); }
+
+  .delete { color:#b00; }
+  .edit { color:#2b5c9a; }
+
+  /* Sidebar tag list */
+  #tagList { margin-top:8px; }
+  .tag-item {
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:8px;
+    border-radius:8px;
+    background:#fff1e0;
+    border:1px solid #f3d8b8;
+    margin-bottom:8px;
+  }
+  .tag-item input[type=checkbox] { width:16px; height:16px; }
+  .tag-name { flex:1; font-size:14px; cursor:pointer; }
+  .tag-trash { color:#a00; font-weight:700; cursor:pointer; padding-left:8px; }
+
+  /* Popup styles (R1: same as quotes) */
+  .overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,0.5);
+    display:none; align-items:center; justify-content:center; z-index:50;
+  }
+  .modal{
+    width:clamp(300px, 90%, 520px);
+    background:#fffef8;
+    padding:18px;
+    border-radius:12px;
+    border:3px dashed var(--accent);
+    box-sizing:border-box;
+  }
+  .modal h4{ margin:0 0 10px 0; }
+  .modal .modal-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:12px; }
+
+  /* small helpers */
+  .muted { color:#666; font-size:13px; }
+  hr { border:0; border-top:2px dashed var(--edge); margin:12px 0; }
+
+  /* responsive */
+  @media (max-width:900px){
+    .wrap { flex-direction:column; }
+    #sidebar{ width:100%; border-right:none; border-bottom:3px dashed var(--edge); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <!-- Sidebar -->
+  <aside id="sidebar">
+    <h3>Tags</h3>
+    <div id="tagList"></div>
+    <hr>
+    <div>
+      <div class="muted">Tip: check tags to filter. Click tag names to toggle.</div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main id="main">
+    <h1>Poems</h1>
+
+    <section>
+      <h3>Add Poem</h3>
+      <input id="titleInput" class="input" placeholder="Title" />
+      <input id="actorsInput" class="input" placeholder="Writer" />
+      <textarea id="plotInput" class="input" rows="4" placeholder="Poem"></textarea>
+      <input id="yearInput" class="input" placeholder="Comment" />
+      <input id="tagsInput" class="input" placeholder="Tags (comma separated)" />
+      <div class="row">
+        <button class="btn" onclick="addMovie()">➕ Add Poem</button>
+        <button class="btn ghost small" onclick="clearInputs()">Clear</button>
+      </div>
+    </section>
+
+    <hr />
+
+    <section class="row" style="align-items:center;">
+      <input id="searchInput" class="input" placeholder="Search" oninput="renderMovies()" style="flex:1;" />
+      <button class="btn small" onclick="showRandom()">🎲 Random</button>
+      <button class="btn small" onclick="exportData()">⬇ Export</button>
+      <input id="importFile" type="file" accept=".json" style="display:none" onchange="importData(event)">
+      <button class="btn small" onclick="document.getElementById('importFile').click()">⬆ Import</button>
+    </section>
+
+    <section class="movies" id="moviesList" aria-live="polite"></section>
+  </main>
+</div>
+
+<!-- Random / Message Popup -->
+<div id="popup" class="overlay" onclick="if(event.target===this) closePopup()">
+  <div class="modal" role="dialog" aria-modal="true">
+    <h4>Random Poem</h4>
+    <div id="popupText" style="white-space:pre-wrap; font-size:15px;"></div>
+    <div class="modal-actions">
+      <button class="btn small" onclick="closePopup()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div id="editModal" class="overlay" onclick="if(event.target===this) closeEdit()">
+  <div class="modal" role="dialog" aria-modal="true">
+    <h4>Edit Movie</h4>
+    <input id="editTitle" class="input" placeholder="Title" />
+    <input id="editActors" class="input" placeholder="Actors (comma separated)" />
+    <textarea id="editPlot" class="input" rows="4" placeholder="Plot"></textarea>
+    <input id="editYear" class="input" placeholder="Year" />
+    <input id="editTags" class="input" placeholder="Tags (comma separated)" />
+    <div class="modal-actions">
+      <button class="btn small" onclick="applyEdit()">Save</button>
+      <button class="btn small ghost" onclick="closeEdit()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // --- Data & Storage ---
+  const STORAGE_KEY = "bj_movies_v1";
+  let movies = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+  // movie: { title, actors: [str], plot, year, tags: [str] }
+
+  // tag filters set
+  const tagFilters = new Set();
+
+  // helper to save
+  function save(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(movies));
+  }
+
+  // --- Utility ---
+  function normalizeListInput(str){
+    return (str||"").split(",").map(s=>s.trim()).filter(Boolean);
+  }
+  function uniqueSortedTags(){
+    const s = new Set(movies.flatMap(m=>m.tags||[]));
+    return [...s].sort((a,b)=>a.localeCompare(b));
+  }
+  function escapeForAttr(s){
+    return (s||"").replace(/'/g,"\\'").replace(/"/g,'\\"');
+  }
+  function escHtml(s){
+    return (s||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
+  }
+
+  // --- Tag sidebar ---
+  function updateTagList(){
+    const tagList = document.getElementById("tagList");
+    tagList.innerHTML = "";
+    const tags = uniqueSortedTags();
+    if(tags.length === 0){
+      tagList.innerHTML = "<div class='muted'>No tags yet — add tags when creating movies.</div>";
+      return;
+    }
+    tags.forEach(tag=>{
+      const div = document.createElement("div");
+      div.className = "tag-item";
+      div.innerHTML = `
+        <input type="checkbox" ${tagFilters.has(tag) ? "checked" : ""} onchange="toggleTagFilter('${escapeForAttr(tag)}', this.checked)">
+        <div class="tag-name" onclick="toggleTagFilter('${escapeForAttr(tag)}', !this.previousElementSibling.checked)">${escHtml(tag)}</div>
+        <div class="tag-trash" title="Delete tag from all movies" onclick="event.stopPropagation(); deleteTag('${escapeForAttr(tag)}')">🗑</div>
+      `;
+      tagList.appendChild(div);
+    });
+  }
+
+  function toggleTagFilter(tag, checked){
+    if(checked) tagFilters.add(tag);
+    else tagFilters.delete(tag);
+    renderMovies();
+  }
+
+  function deleteTag(tag){
+    if(!confirm(`Delete tag "${tag}" from ALL movies?`)) return;
+    movies.forEach(m => { m.tags = (m.tags||[]).filter(t=>t !== tag); });
+    tagFilters.delete(tag);
+    save();
+    renderMovies();
+  }
+
+  // --- Add / Clear ---
+  function addMovie(){
+    const title = document.getElementById("titleInput").value.trim();
+    if(!title){ alert("Please enter the movie title."); return; }
+    const actors = normalizeListInput(document.getElementById("actorsInput").value);
+    const plot = document.getElementById("plotInput").value.trim();
+    const year = document.getElementById("yearInput").value.trim();
+    const tags = normalizeListInput(document.getElementById("tagsInput").value);
+    movies.push({ title, actors, plot, year, tags });
+    save();
+    clearInputs();
+    renderMovies();
+  }
+  function clearInputs(){
+    document.getElementById("titleInput").value = "";
+    document.getElementById("actorsInput").value = "";
+    document.getElementById("plotInput").value = "";
+    document.getElementById("yearInput").value = "";
+    document.getElementById("tagsInput").value = "";
+  }
+
+  // --- Render movies (use indices) ---
+  function renderMovies(){
+    updateTagList();
+    const list = document.getElementById("moviesList");
+    list.innerHTML = "";
+    const search = (document.getElementById("searchInput").value || "").toLowerCase();
+
+    const pairs = movies.map((m,i)=>[m,i]).filter(([m,i])=>{
+      // tag filter: if tagFilters non-empty, require some tag matches
+      if(tagFilters.size > 0){
+        const has = (m.tags||[]).some(t => tagFilters.has(t));
+        if(!has) return false;
+      }
+      if(search){
+        const inTitle = (m.title||"").toLowerCase().includes(search);
+        const inActors = (m.actors||[]).join(" ").toLowerCase().includes(search);
+        const inPlot = (m.plot||"").toLowerCase().includes(search);
+        const inYear = (m.year||"").toLowerCase().includes(search);
+        const inTags = (m.tags||[]).join(" ").toLowerCase().includes(search);
+        return inTitle || inActors || inPlot || inYear || inTags;
+      }
+      return true;
+    });
+
+    if(pairs.length === 0){
+      list.innerHTML = "<div class='muted'>No movies found.</div>";
+      return;
+    }
+
+    pairs.forEach(([m,i])=>{
+      const card = document.createElement("div");
+      card.className = "card";
+
+      // prepare plot with expand/collapse if long
+      const maxLen = 250;
+      let plotHtml = escHtml(m.plot || "");
+      let isLong = plotHtml.length > maxLen;
+      if(isLong){
+        const short = escHtml(m.plot.slice(0, maxLen));
+        plotHtml = `<span class="plot-short">${short}...</span><span class="plot-more" style="display:none">${escHtml(m.plot.slice(maxLen))}</span><span class="more" onclick="togglePlot(this)">Read more</span>`;
+      } else {
+        plotHtml = escHtml(m.plot || "");
+      }
+
+      const actorsText = (m.actors || []).join(", ");
+      const tagsHtml = (m.tags||[]).map(t=>`<span class="tag" onclick="event.stopPropagation(); filterByTag('${escapeForAttr(t)}')">${escHtml(t)}</span>`).join("");
+
+      card.innerHTML = `
+        <div class="icons">
+          <button class="icon-btn edit" title="Edit" onclick="openEdit(${i})">✏️</button>
+          <button class="icon-btn delete" title="Delete" onclick="deleteMovie(${i})">×</button>
+        </div>
+        <h4>
+          <span style="flex:1">${escHtml(m.title)}</span>
+        </h4>
+        <div class="actors">${escHtml(actorsText)}</div>
+        <div class="plot">${plotHtml}</div>
+        <div style="margin-top:8px">${tagsHtml}</div>
+	<div class="meta">${escHtml(m.year || "")}</div>
+      `;
+      list.appendChild(card);
+    });
+  }
+
+  // toggle plot expand/collapse (delegated via inline onclick on 'more' span)
+  function togglePlot(el){
+    const parent = el.parentElement;
+    const short = parent.querySelector(".plot-short");
+    const more = parent.querySelector(".plot-more");
+    if(!more) return;
+    if(more.style.display === "none"){
+      short.style.display = "none";
+      more.style.display = "inline";
+      el.textContent = "Show less";
+    } else {
+      short.style.display = "inline";
+      more.style.display = "none";
+      el.textContent = "Read more";
+    }
+  }
+
+  function filterByTag(tag){
+    tagFilters.add(tag);
+    renderMovies();
+  }
+
+  // --- Delete movie ---
+  function deleteMovie(index){
+    if(!confirm("Delete this movie?")) return;
+    if(index<0 || index>=movies.length) return;
+    movies.splice(index,1);
+    save();
+    renderMovies();
+  }
+
+  // --- Random popup ---
+  function showRandom(){
+    if(movies.length === 0){ alert("No poems yet."); return; }
+    const r = movies[Math.floor(Math.random()*movies.length)];
+    const t = `${r.title}\n\nComment: ${r.year || "Unknown"}\n\nWriter: ${(r.actors||[]).join(", ") || "Unknown"}\n\n${r.plot || "(No plot)"}\n\nTags: ${(r.tags||[]).join(", ") || "(none)"}`;
+    document.getElementById("popupText").textContent = t;
+    document.getElementById("popup").style.display = "flex";
+  }
+  function closePopup(){ document.getElementById("popup").style.display = "none"; }
+
+  // --- Export / Import ---
+  function exportData(){
+    const data = JSON.stringify(movies, null, 2);
+    const blob = new Blob([data], {type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    const now = new Date().toISOString().slice(0,19).replaceAll("T","_");
+    a.download = `movies_backup_${now}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function importData(event){
+    const file = event.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const parsed = JSON.parse(reader.result);
+        if(!Array.isArray(parsed)) throw new Error("Invalid format");
+        for(const item of parsed){
+          if(!item.title) throw new Error("Missing 'title' in some items");
+          // normalize fields
+          item.actors = Array.isArray(item.actors) ? item.actors.map(String) : normalizeListInput(item.actors||"");
+          item.plot = item.plot || "";
+          item.year = item.year || "";
+          item.tags = Array.isArray(item.tags) ? item.tags.map(String) : normalizeListInput(item.tags||"");
+        }
+        if(!confirm("Import will replace current movies. Continue?")) return;
+        movies = parsed;
+        save();
+        renderMovies();
+        alert("Import successful.");
+      }catch(err){
+        alert("Import failed: " + (err.message || err));
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = "";
+  }
+
+  // --- Edit modal (E1) ---
+  let editingIndex = null;
+  function openEdit(index){
+    const m = movies[index];
+    if(!m) return;
+    editingIndex = index;
+    document.getElementById("editTitle").value = m.title || "";
+    document.getElementById("editActors").value = (m.actors||[]).join(", ");
+    document.getElementById("editPlot").value = m.plot || "";
+    document.getElementById("editYear").value = m.year || "";
+    document.getElementById("editTags").value = (m.tags||[]).join(", ");
+    document.getElementById("editModal").style.display = "flex";
+  }
+  function closeEdit(){
+    editingIndex = null;
+    document.getElementById("editModal").style.display = "none";
+  }
+  function applyEdit(){
+    if(editingIndex === null) return;
+    const title = document.getElementById("editTitle").value.trim();
+    if(!title){ alert("Title required."); return; }
+    const actors = normalizeListInput(document.getElementById("editActors").value);
+    const plot = document.getElementById("editPlot").value.trim();
+    const year = document.getElementById("editYear").value.trim();
+    const tags = normalizeListInput(document.getElementById("editTags").value);
+    movies[editingIndex] = { title, actors, plot, year, tags };
+    save();
+    closeEdit();
+    renderMovies();
+  }
+
+  // --- Init ---
+  renderMovies();
+
+  // expose helpers used by inline onclicks
+  window.togglePlot = togglePlot;
+  window.toggleTagFilter = toggleTagFilter;
+  window.filterByTag = filterByTag;
+  window.openEdit = openEdit;
+  window.deleteMovie = deleteMovie;
+  window.showRandom = showRandom;
+  window.closePopup = closePopup;
+  window.exportData = exportData;
+  window.importData = importData;
+  window.clearInputs = clearInputs;
+  window.applyEdit = applyEdit;
+  window.closeEdit = closeEdit;
+  window.renderMovies = renderMovies;
+</script>
+</body>
+</html>
